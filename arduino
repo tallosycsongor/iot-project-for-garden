@@ -1,0 +1,65 @@
+#include <SoftwareSerial.h>
+
+SoftwareSerial gsm(7, 8);
+
+const int sensorPin = A0;
+const int relayPump = 4;
+const int relayValve = 5;
+
+int threshold = 500;
+unsigned long pumpDuration = 60000;
+String incomingSMS = "";
+
+void setup() {
+pinMode(relayPump, OUTPUT);
+pinMode(relayValve, OUTPUT);
+digitalWrite(relayPump, HIGH);
+digitalWrite(relayValve, HIGH);
+Serial.begin(9600);
+gsm.begin(9600);
+delay(1000);
+gsm.println("AT+CMGF=1");
+delay(1000);
+gsm.println("AT+CNMI=1,2,0,0,0");
+delay(1000);
+}
+
+void loop() {
+int moisture = analogRead(sensorPin);
+Serial.print("Nedvesseg: ");
+Serial.println(moisture);
+
+if (moisture < threshold) {
+startIrrigation();
+}
+
+if (gsm.available()) {
+char c = gsm.read();
+if (c == '\n') {
+processSMS(incomingSMS);
+incomingSMS = "";
+} else {
+incomingSMS += c;
+}
+}
+
+delay(10000);
+}
+
+void startIrrigation() {
+digitalWrite(relayValve, LOW);
+delay(1000);
+digitalWrite(relayPump, LOW);
+delay(pumpDuration);
+digitalWrite(relayPump, HIGH);
+delay(1000);
+digitalWrite(relayValve, HIGH);
+}
+
+void processSMS(String message) {
+message.trim();
+message.toUpperCase();
+if (message.indexOf("START") >= 0) {
+startIrrigation();
+}
+}
